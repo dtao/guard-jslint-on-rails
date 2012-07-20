@@ -9,17 +9,23 @@ module Guard
 
     def initialize(watchers=[], options={})
       super
-      @config_path = File.join(Dir.pwd, options[:config_path] || 'config/jshint.yml')
+      @config_path = File.join(Dir.pwd, options[:config_path] || 'config/jslint.yml')
     end
 
     def start
       UI.info "Guard::JsLintOnRails started using config: #{@config_path}"
     end
 
+    def run_all
+      run_on_change(all_paths)
+    end
+
     def run_on_change(paths)
       error = nil
+      output = StringIO.new
+
       begin
-        output = capture_output do
+        capture_output(output) do
           lint = ::JSLint::Lint.new(
             :paths => paths,
             :config_path => @config_path 
@@ -28,21 +34,27 @@ module Guard
         end
       rescue ::JSLint::LintCheckFailure => e
         error = e
+        puts e.backtrace
       end
-      Notifier.notify((error ? 'failed' : 'passed'), :title => 'JSLint results', :image => (error ? :failed : :success))
+      Notifier.notify((error ? "Failed!\n\n#{output.string}" : "Passed."), :title => "JSLint results", :image => (error ? :failed : :success))
       true
     end
 
     private
-    def capture_output
-      out = StringIO.new
-      $stdout = out
-      $stderr = out
+    def all_paths
+      patterns = watchers.map(&:pattern)
+      files = Dir.glob("*/**/*.js").map { |file| File.expand_path(file) }
+      matching_files = patterns.map { |pattern| files.grep(pattern) }
+      matching_files.flatten
+    end
+
+    def capture_output(output)
+      $stdout = output
+      $stderr = output
       yield
-      return out
     ensure
-      $stderr = STDERR
       $stdout = STDOUT
+      $stderr = STDERR
     end
   end
 end
