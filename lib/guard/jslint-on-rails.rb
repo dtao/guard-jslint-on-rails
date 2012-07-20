@@ -34,7 +34,6 @@ module Guard
         end
       rescue ::JSLint::LintCheckFailure => e
         error = e
-        puts e.backtrace
       end
       Notifier.notify((error ? "Failed!\n\n#{output.string}" : "Passed."), :title => "JSLint results", :image => (error ? :failed : :success))
       true
